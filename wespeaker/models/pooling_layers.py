@@ -53,9 +53,16 @@ class TSDP(nn.Module):
         super(TSDP, self).__init__()
         self.in_dim = in_dim
 
+    def var(self, x, dim, keepdim=False):
+        input_means = torch.mean(x, dim=dim, keepdim=True)
+        differences = x - input_means
+        squared_deviations = torch.square(differences)
+        variance = torch.mean(squared_deviations, dim=dim, keepdim=keepdim)
+        return variance
+
     def forward(self, x):
         # The last dimension is the temporal axis
-        pooling_std = torch.sqrt(torch.var(x, dim=-1) + 1e-7)
+        pooling_std = torch.sqrt(self.var(x, dim=-1) + 1e-7)
         pooling_std = pooling_std.flatten(start_dim=1)
         return pooling_std
 
@@ -75,10 +82,17 @@ class TSTP(nn.Module):
         super(TSTP, self).__init__()
         self.in_dim = in_dim
 
+    def var(self, x, dim, keepdim=False):
+        input_means = torch.mean(x, dim=dim, keepdim=True)
+        differences = x - input_means
+        squared_deviations = torch.square(differences)
+        variance = torch.mean(squared_deviations, dim=dim, keepdim=keepdim)
+        return variance
+
     def forward(self, x):
         # The last dimension is the temporal axis
         pooling_mean = x.mean(dim=-1)
-        pooling_std = torch.sqrt(torch.var(x, dim=-1) + 1e-7)
+        pooling_std = torch.sqrt(self.var(x, dim=-1) + 1e-7)
         pooling_mean = pooling_mean.flatten(start_dim=1)
         pooling_std = pooling_std.flatten(start_dim=1)
         stats = torch.cat((pooling_mean, pooling_std), 1)
@@ -116,6 +130,13 @@ class ASTP(nn.Module):
         self.linear2 = nn.Conv1d(bottleneck_dim, in_dim,
                                  kernel_size=1)  # equals V and k in the paper
 
+    def var(self, x, dim, keepdim=False):
+        input_means = torch.mean(x, dim=dim, keepdim=True)
+        differences = x - input_means
+        squared_deviations = torch.square(differences)
+        variance = torch.mean(squared_deviations, dim=dim, keepdim=keepdim)
+        return variance
+
     def forward(self, x):
         """
         x: a 3-dimensional tensor in tdnn-based architecture (B,F,T)
@@ -128,8 +149,8 @@ class ASTP(nn.Module):
 
         if self.global_context_att:
             context_mean = torch.mean(x, dim=-1, keepdim=True).expand_as(x)
-            context_std = torch.sqrt(
-                torch.var(x, dim=-1, keepdim=True) + 1e-7).expand_as(x)
+            context_std = torch.sqrt(self.var(x, dim=-1, keepdim=True) +
+                                     1e-7).expand_as(x)
             x_in = torch.cat((x, context_mean, context_std), dim=1)
         else:
             x_in = x
