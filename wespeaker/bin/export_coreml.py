@@ -32,20 +32,13 @@ from wespeaker.utils.checkpoint import load_checkpoint
 @register_torch_op()
 def var(context, node):
     inputs = _get_inputs(context, node, expected=4)
+
     x = inputs[0]
     axes = inputs[1].val
-
-    assert isinstance(axes, list) and all(
-        isinstance(axis, int) for axis in axes)
-
-    # Assert we can have biased divisor (N). (Change #1)
-    assert inputs[2].val is False
-
-    keepdim = True  # Set keepdim to True for broadcasting (Change #2)
+    keepdim = True
 
     x_mean = mb.reduce_mean(x=x, axes=axes, keep_dims=keepdim)
-    x_sub_mean = mb.sub(x=x,
-                        y=x_mean)  # Broadcasting should work here (Change #4)
+    x_sub_mean = mb.sub(x=x, y=x_mean)
     x_sub_mean_square = mb.square(x=x_sub_mean)
     x_var = mb.reduce_mean(x=x_sub_mean_square, axes=axes, keep_dims=keepdim)
 
